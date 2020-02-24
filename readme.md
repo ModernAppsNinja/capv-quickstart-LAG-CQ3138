@@ -1,199 +1,115 @@
-**THIS GUIDE IS UNDER DEVELOPMENT AND MAY NOT BE FUNCTIONAL - THIS MESSAGE WILL BE REMOVED WHEN THE GUIDE IS READY FOR USE. IF YOU HAVE ANY QUESTIONS, PLEASE OPEN AN ISSUE TICKET. IF YOU WOULD LIKE TO CONTRIBUTE TO THIS GUIDE, PLEASE SUBMIT A PR WITH YOUR UPDATES, THANK YOU.** 
-
-**PLEASE DO NOT REMOVE ANYTHING ABOVE THIS LINE UNTIL YOUR GUIDE IS COMPLETE AND VALIDATED FOR END USER CONSUMPTION** 
-
-## ModernApps.ninja starter guide template 
-
-Please reference the content below for formatting examples, and replace with your desired content.
-# Lab Excercise Page Syle Template - 1st level - Main Header
+# ClusterAPI Provider for vSphere Quickstart 
 
 **Contents:**
 
-- [Step 1: ]()
-- [Step 2: ]()
-- [Step 3: ]()
-- [Step 4: ]()
-- [Step 5: ]()
-- [Next Steps]()
+- [Pre-Requisites](#pre-requisites)
+- [Step 1: Install CAPV Image](#step-1-install-capv-image)
+- [Step 2: Configure CAPV Image](#step-2-configure-capv-image)
+- [Step 3: Install and Connect Octant](step-3-install-and-connect-octant)
+- [Step 4: Review CAPV Configuration Script](#step-4-review-capv-configuration-script)
+- [Step 5: Review ClusterAPI Manifests & vCenter Deployment](#step-5-review-clusterapi-manifests-vcenter-deployment)
+- [Next Steps](#next-steps)
 
-## Step 1: 2nd level header, steps often have multiple substeps and subsections
+## Pre-Requisites
 
-1.1 Uses dotted decimal numbering. This sentence 1.1 is a substep of step 1. Use a single decimal format for each substep that itself does not have other substeps. For substeps that have their own substeps, use a subsection format shown in steps 1.2 and 1.3
+- Pre.1 Requires a vSphere environment of 6.7U3 or better. DHCP is a requirement as well. Make sure there is a functioning DHCP service. 
+- Pre.2 Required Lab Environment - PKS-Ninja-T1-Baseline (see validate.md for specific labEnvironment versions validated for this guide)
 
-This format is intended to find an optimal balance of usability for the user and flexibility and simplicity for content developers. As this paragraph demonstrates, its perfectly fine to add prose inline within each step as needed to sufficiently explain the step, keeping in mind that it is crucial for user experience to keep the document streamlined, and so recommend liberal use of hidden and expandable section blocks as shown below
+## Step 1: Install CAPV Image
 
-<details><summary>Click to expand</summary>
+1.1 From the Control Center Desktop,  Download the CAPV image from the [CAPV Github Repo](https://github.com/kubernetes-sigs/cluster-api-provider-vsphere#kubernetes-versions-with-published-ovas). At the time of this writing, this example is using Photon 1.16.3
 
-If you have any long text sections such as detailed explanations, code examples, configuration files, etc, please wrap them in expanding sections as shown here.
-
-Keep in mind this template is optimized for Lab Exercise guides which generally include lots of tasks that the reader needs to do. 
-
-Also please place all images inside expanding blocks, further details about images will be shown in step 1.4 below
+<details><summary>Screenshot 1.1</summary>
 
 </details>
 <br/>
 
-1.2 Minor subsection headers
+1.2	Open a web browser tab to vcenter and login using the Windows system credentials. Right-click on the `RegionA01-COMP01` cluster and select `Deploy OVF Template`
 
-1.2.1 if you have a substep that includes its own substeps, you need a subsection. This style guide offers two options for subsection handling, the minor subsection format shown here in step 1.2, and the major subsection format shown in step 1.3
-
-### 1.3 Major Subsection Headers
-
-Use major subsection headers whenever they are a better fit for the flow of your document. It is fine to use both minor and major subsection styles within the same document, so long as the overall flow and organization of the document make sense to the reader
-
-The rest of the text below is sample text copied from a lab exercise guide that uses this style
-
-1.3.1 Make a copy of the `frontend-deployment_all_k8s.yaml` file, save it as `frontend-deployment_ingress.yaml`
-
-Example:
-`cp frontend-deployment_all_k8s.yaml frontend-deployment_ingress.yaml`
-
-1.3.2 Get the URL of your smarcluster with the following command, be sure to replace 'afewell-cluster' with the name of your cluster:
-
-``` bash
-vke cluster show afewell-cluster | grep Address
-```
-
-<details><summary>Screenshot 1.3.2</summary>
-<img src="Images/2018-10-20-15-45-19.png">
-</details>
-<br/>
-
-1.3.3 Edit the `frontend-deployment_ingress.yaml` file, near the bottom of the file in the ingress spec section, change the value for spec.rules.host to URL for your smartcluster as shown in the following snippet:
-
-NOTE: Be sure to replace the URL shown here with the URL for your own smartcluster
-
-``` bash
-spec:
-  rules:
-  - host: afewell-cluster-69fc65f8-d37d-11e8-918b-0a1dada1e740.fa2c1d78-9f00-4e30-8268-4ab81862080d.vke-user.com
-    http:
-      paths:
-      - backend:
-          serviceName: planespotter-frontend
-          servicePort: 80
-```
-
-<details><summary>Click to expand to see the full contents of frontend-deployment_ingress.yaml</summary>
-
-When reviewing the file contents below, observe that it includes a ClusterIP service spec which only provides an IP address that is usable for pod-to-pod communications in the cluster. The file also includes an ingress spec which implements the default VKE ingress controller.
-
-In the following steps after you deploy the planespotter-frontend with ingress controller, you will be able to browse from your workstation to the running planespotter app in your VKE environment even though you have not assigned a nat or public IP for the service.
-
-Ingress controllers act as a proxies, recieving http/s requests from external clients and then based on the URL hostname or path, the ingress controller will proxy the request to the corresponding back-end service. For example mysite.com/path1 and mysite.com/path2 can be routed to different backing services running in the kubernetes cluster.
-
-In the file below, no rules are specified to different paths and so accordingly, all requests sent to the host defined in the spec, your VKE SmartCluster URL, will be proxied by the ingress controller to the planespotter-frontend ClusterIP service also defined in the frontend-deployment_ingress.yaml file
-
-``` bash
----
-apiVersion: apps/v1beta1
-kind: Deployment
-metadata:
-  name: planespotter-frontend
-  namespace: planespotter
-  labels:
-    app: planespotter-frontend
-    tier: frontend
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: planespotter-frontend
-  template:
-    metadata:
-      labels:
-        app: planespotter-frontend
-        tier: frontend
-    spec:
-      containers:
-      - name: planespotter-fe
-        image: yfauser/planespotter-frontend:d0b30abec8bfdbde01a36d07b30b2a3802d9ccbb
-        imagePullPolicy: IfNotPresent
-        env:
-        - name: PLANESPOTTER_API_ENDPOINT
-          value: planespotter-svc
-        - name: TIMEOUT_REG
-          value: "5"
-        - name: TIMEOUT_OTHER
-          value: "5"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: planespotter-frontend
-  namespace: planespotter
-  labels:
-    app: planespotter-frontend
-spec:
-  ports:
-    # the port that this service should serve on
-    - port: 80
-  selector:
-    app: planespotter-frontend
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: planespotter-frontend
-  namespace: planespotter
-spec:
-  rules:
-  - host: afewell-cluster-69fc65f8-d37d-11e8-918b-0a1dada1e740.fa2c1d78-9f00-4e30-8268-4ab81862080d.vke-user.com
-    http:
-      paths:
-      - backend:
-          serviceName: planespotter-frontend
-          servicePort: 80
-```
+<details><summary>Screenshot 1.2</summary>
 
 </details>
 <br/>
 
-1.3.4 Run the updated planespotter-frontend app and verify deployment with the following commands. Make note of the external IP address/hostname shown in the output of `kubectl get services`
+1.3	On the `Select an OVF Template` screen, select the CAPV image you downloaded in the previous step
 
-``` bash
-kubectl create -f frontend-deployment_ingress.yaml
-kubectl get pods
-kubectl get deployments
-kubectl get services
-kubectl get ingress
-kubectl describe ingress
-```
+<details><summary>Screenshot 1.3</summary>
 
-<details><summary>Screenshot 1.3.4</summary>
-<img src="Images/2018-10-20-16-11-14.png">
-</details>
-
-1.3.5 Open a browser and go to the url of your VKE SmartCluster to verify that planespotter-frontend is externally accessible with the LoadBalancer service
-
-<details><summary>Screenshot 5.5.5</summary>
-<img src="Images/2018-10-20-16-26-46.png">
 </details>
 <br/>
 
-1.3.6 Clean up the planespotter-frontend components and verify with the following commands:
+1.4	on the `Select a name and folder` page, set the `Virtual Machine Name`
 
-``` bash
-kubectl delete -f frontend-deployment_ingress.yaml
-kubectl get pods
-kubectl get deployments
-kubectl get services
-kubectl get ingress
-```
+<details><summary>Screenshot 1.3</summary>
 
-<details><summary>Screenshot 5.5.6</summary>
-<img src="Images/2018-10-20-16-32-19.png">
 </details>
 <br/>
+
+
+
+
+
+
+
+
+---------------------------
+1.3	Set the CAPV Image as a Template. Right Click and set as Template
+
+<details><summary>Screenshot 1.3</summary>
+![image](https://user-images.githubusercontent.com/60424950/74877766-d79f0700-531a-11ea-800c-f60d50931d4e.png)
+</details>
+<br/>
+
+
+## Step 2: Configure CAPV Image
+
+2.1	Instead of following the CAPV QuickStart, we will use a script to automate the deployment. Open an ssh connection to cli-vm to bootstrap cluster
+
+![image](https://user-images.githubusercontent.com/60424950/74878195-aecb4180-531b-11ea-8b15-cdf5d9da8d86.png)
+
+
+2.2	After the VM has come up, SSH into the virtual machine. Create a new file called `capv.sh` and copy and paste this QuickStart script.
+
+2.3	Run `sudo chmod u+x capv.sh`, then execute with `sudo ./capv.sh`
+
+2.4	The script will prompt for questions as it relates to the vCenter IP, username, password, and other environment variables needed such as the vCenter Datacenter, the VM network to attach the VMs, Resource Pool, Datastore, Folder and so on. Accept the defaults for the remaining unless you feel inclined to change or add additional workers. 
+
+![image](https://user-images.githubusercontent.com/60424950/74878225-bf7bb780-531b-11ea-9b47-e57a69d88340.png)
+
+
+2.5	The script will do a complete installation of docker, kind, clusterctl, and kubectl. It will then create the vSphere configuration file needed for the CAPV manifests. The Ubuntu VM will initiate a kind bootstrap cluster that will create the management-cluster. After the management cluster is created, the kind bootstrap cluster is removed. The manifests for the workload cluster are generated and then applied to the management cluster. This will begin deploying workload-cluster-1. management-cluster and workload-cluster-1 are default names used. After workload-cluster-1 is online, Calico is applied for networking. 
+
+2.6	the following text is displayed and you can interact with any cluster
+
+```bash
+Kubernetes Workload Cluster Deployment is Complete!
+Use 'export KUBECONFIG="$(pwd)/out/workload-cluster-1/kubeconfig"' to interact with the workload cluster using kubectl.
+Use 'export KUBECONFIG="$(pwd)/out/management-cluster/kubeconfig"' to interact with the management cluster using kubectl.
+Access the Octant UI at boot.vsphere.local:7777 or 10.173.61.70:7777
+```
+
+## Step 3: Install and Connect Octant
+
+3.1	Lastly, Octant is installed to have a GUI
+
+![image](https://user-images.githubusercontent.com/60424950/74878251-cb677980-531b-11ea-9680-3c424d106630.png)
+
+
+## Step 4: Review CAPV Configuration Script
+
+4.1 Add Steps
+
+## Step 5: Review ClusterAPI Manifests & vCenter Deployment
+
+5.1 On the Ubuntu VM, go to the `out` directory in the PWD to see the Cluster API manifests that were generated. These can be manipulated and re-applied with kubectl to the respective clusters. You can also look at the script to see how to create a second workload cluster and have that be applied.
+
+![image](https://user-images.githubusercontent.com/60424950/74878284-dde1b300-531b-11ea-8331-32a928b247c1.png)
+
+
+5.2.	Here's an example of what the vSphere environment will look like
+
+![image](https://user-images.githubusercontent.com/60424950/74878296-e4702a80-531b-11ea-9edd-c5819440e6ab.png)
+
 
 ## Next Steps
-
-This lab provided an introductory overview of Kubernetes operations. Additional topics such as persistent volumes, network policy, config maps, stateful sets and more will be covered in more detail in the ongoing labs.
-
-If you are following the PKS Ninja cirriculum, [click here to proceed to the next lab](../Lab2-PksInstallationPhaseOne). As you proceed through the remaining labs you will learn more advanced details about Kubernetes using additional planespotter app components as examples and then deploy the complete planespotter application on a PKS environment.
-
-If you are not following the PKS Ninja cirriculum and would like to deploy the complete planespotter app on VKE, you can find [complete deployment instructions here](https://github.com/Boskey/run_kubernetes_with_vmware)
-
-### Thank you for completing the Introduction to Kubernetes Lab!
-
-### [Please click here to proceed to Lab2: PKS Installation Phase 1](../Lab2-PksInstallationPhaseOne)
+Enter Next Steps here
